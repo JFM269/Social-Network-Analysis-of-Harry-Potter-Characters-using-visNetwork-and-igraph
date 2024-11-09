@@ -49,28 +49,31 @@ head(edges)
 ## 3. Creating the Network
 
 ```{r}
+#| fig-width: 12
+#| fig-height: 6
+
 nodes_transformed <- nodes |>
   select(id = characters, label = characters, house = house) |>
-  mutate(house.type = case_when(
-    house == "Gryffindor" ~ 1,
-    house == "Slytherin" ~ 2,
-    house == "Ravenclaw" ~ 3,
-    house == "Hufflepuff" ~ 4,
-    TRUE ~ 5
-  ),
-  color = case_when(
-    house == "Gryffindor" ~ "#800000", # Dark Red for Gryffindor
-    house == "Slytherin" ~ "#006600", # Green for Slytherin
-    house == "Ravenclaw" ~ "#0000FF", # Blue for Ravenclaw
-    house == "Hufflepuff" ~ "#FFCC00", # Yellow for Hufflepuff
-    TRUE ~ "#999999" # Default color for others
-  ))
+  mutate(
+    house.type = case_when(
+      house == "Gryffindor" ~ 1,
+      house == "Slytherin" ~ 2,
+      house == "Ravenclaw" ~ 3,
+      house == "Hufflepuff" ~ 4,
+      TRUE ~ 5
+    ),
+    color = case_when(
+      house == "Gryffindor" ~ "#800000", # Dark Red for Gryffindor
+      house == "Slytherin" ~ "#006600", # Green for Slytherin
+      house == "Ravenclaw" ~ "#0000FF", # Blue for Ravenclaw
+      house == "Hufflepuff" ~ "#FFCC00", # Yellow for Hufflepuff
+      TRUE ~ "#999999" # Default color for others
+    )
+  )
 
 edges_transformed <- edges |>
-  # Join with nodes to get ids for source using the 'characters' column from nodes
   left_join(nodes_transformed, by = c("source" = "label")) |>
   rename(from = id) |>
-  # Join with nodes to get ids for target using the 'characters' column from nodes
   left_join(nodes_transformed, by = c("target" = "label")) |>
   rename(to = id) |>
   select(from, to, weight)
@@ -78,16 +81,18 @@ edges_transformed <- edges |>
 network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter House Network") |>
   visLayout(randomSeed = 123) |>
   visLegend(width = 0.1, position = "right", main = "House") |>
-  visOptions(highlightNearest = list(enabled = TRUE,degree = 1),
-    nodesIdSelection = TRUE,
-    selectedBy = "house") |>
-  visEdges(smooth = FALSE, color = list(color = "lightgray", highlight = "black"),width = 1,selectionWidth = 3) |>
-  visPhysics(enabled = FALSE) |>
+  visOptions(highlightNearest = list(enabled = TRUE, degree = 1), nodesIdSelection = TRUE, selectedBy = "house") |>
+  visEdges(smooth = FALSE, color = list(color = "lightgray", highlight = "black"), width = 1, selectionWidth = 3) |>
+  visPhysics(enabled = TRUE, solver = "forceAtlas2Based", forceAtlas2Based = list(gravitationalConstant = -50, centralGravity = 0.01, springLength = 200, avoidOverlap = 1)) |>
   visInteraction(hideEdgesOnDrag = TRUE, dragNodes = TRUE, dragView = TRUE, zoomView = TRUE, navigationButtons = TRUE)
 
-# Display the network
 network
+
 ```
+
+
+**NOTE: If the network visualization appears too clustered, please feel free to adjust the node positions (by dragging them around) for improved clarity.**
+
 
 
 ## 4. Degree Centrality
@@ -113,6 +118,8 @@ print(head(degree_leaders))
 
 
 ```{r}
+#| fig-width: 12
+#| fig-height: 6
 house_colors_centrality <- rev(colorRampPalette(brewer.pal(9, "Oranges"))(nrow(nodes_transformed)))
 nodes_transformed <- nodes_transformed |>
   mutate(
@@ -121,15 +128,16 @@ nodes_transformed <- nodes_transformed |>
     title = paste("Character:", label, "<br>Degree:", degree_centrality)
   )
 
-network_degree <- visNetwork(nodes_transformed, edges_transformed, height = '350px', width = "100%", main = "Degree Centrality") |>
+network_degree <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Degree Centrality") |>
   visLayout(randomSeed = 123) |>
-  visNodes(color = list(border = "black",background = nodes_transformed$color.background),size = 20) |>
-  visOptions(highlightNearest = list(enabled = TRUE,degree = list(from = 1, to = 1), hover = FALSE),selectedBy = "degree_rank") |>
-  visPhysics(enabled = FALSE) |>
-  visInteraction(hideEdgesOnDrag = TRUE,dragNodes = TRUE,dragView = TRUE,zoomView = TRUE,navigationButtons = TRUE) |>
+  visNodes(color = list(border = "black", background = nodes_transformed$color.background), size = 20) |>
+  visOptions(highlightNearest = list(enabled = TRUE, degree = list(from = 1, to = 1), hover = FALSE), selectedBy = "degree_rank") |>
+  visPhysics(enabled = TRUE, solver = "forceAtlas2Based", forceAtlas2Based = list(gravitationalConstant = -50, centralGravity = 0.01, springLength = 150, avoidOverlap = 1)) |>
+  visInteraction(hideEdgesOnDrag = TRUE, dragNodes = TRUE, dragView = TRUE, zoomView = TRUE, navigationButtons = TRUE) |>
   visEdges(smooth = FALSE)
 
 network_degree
+
 ```
 
 Now, let's look at weighted degree centrality. It's interesting to compare whether the characters retain the same rank for weighted degree, as they have for degree rank.
@@ -156,6 +164,8 @@ print(head(weighted_degree_leaders))
 
 
 ```{r}
+#| fig-width: 12
+#| fig-height: 6
 house_colors_centrality <- rev(colorRampPalette(brewer.pal(9, "Oranges"))(nrow(nodes_transformed)))
 nodes_transformed <- nodes_transformed |>
   mutate(
@@ -164,12 +174,12 @@ nodes_transformed <- nodes_transformed |>
     title = paste("Character:", label, "<br>Weighted Degree:", weighted_degree_centrality) # Tooltip text
   )
 
-network_weighted_degree <- visNetwork(nodes_transformed, edges_transformed, height = '350px', width = "100%", main = "Weighted Degree Centrality") |>
+network_weighted_degree <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Weighted Degree Centrality") |>
   visLayout(randomSeed = 123) |>
-  visNodes(color = list(border = "black",background = nodes_transformed$color.background),size = 20) |>
-  visOptions(highlightNearest = list(enabled = TRUE,degree = list(from = 1, to = 1), hover = FALSE),selectedBy = "weighted_degree_rank") |>
-  visPhysics(enabled = FALSE) |>
-  visInteraction(hideEdgesOnDrag = TRUE,dragNodes = TRUE,dragView = TRUE,zoomView = TRUE,navigationButtons = TRUE) |>
+  visNodes(color = list(border = "black", background = nodes_transformed$color.background), size = 20) |>
+  visOptions(highlightNearest = list(enabled = TRUE, degree = list(from = 1, to = 1), hover = FALSE), selectedBy = "weighted_degree_rank") |>
+  visPhysics(enabled = TRUE, solver = "forceAtlas2Based", forceAtlas2Based = list(gravitationalConstant = -50, centralGravity = 0.01, springLength = 150, avoidOverlap = 1)) |>
+  visInteraction(hideEdgesOnDrag = TRUE, dragNodes = TRUE, dragView = TRUE, zoomView = TRUE, navigationButtons = TRUE) |>
   visEdges(smooth = FALSE)
 
 network_weighted_degree
@@ -188,7 +198,8 @@ One of the most widely used algorithms for community detection is the Louvain me
 In the code, igraph is used for performing the Louvain community detection algorithm on the graph to identify clusters (communities) based on node connectivity and edge weights. visNetwork is then used for visualizing the graph.
 
 ```{r}
-
+#| fig-width: 12
+#| fig-height: 6
 g <- graph_from_data_frame(d = edges_transformed, vertices = nodes_transformed, directed = FALSE)
 
 # Apply Louvain clustering on the graph using edge weights
@@ -201,16 +212,17 @@ num_communities <- length(unique(nodes_transformed$community))
 community_colors <- RColorBrewer::brewer.pal(min(num_communities, 12), "Set3")
 
 # Visualize the network
-network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter Characters Network by Community")|>
-  visLayout(randomSeed = 123)|>
-  visNodes(color = list(border = "black",background = nodes_transformed$color.community),size = 20) |>
-  visEdges(width = 1)|>
-  visOptions(highlightNearest = list(enabled = TRUE, degree = 2, hover = FALSE),selectedBy = "community") |>
-  visPhysics(enabled = FALSE) |>
+network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter Characters Network by Community") |>
+  visLayout(randomSeed = 123) |>
+  visNodes(color = list(border = "black", background = nodes_transformed$color.community), size = 20) |>
+  visEdges(width = 1) |>
+  visOptions(highlightNearest = list(enabled = TRUE, degree = 2, hover = FALSE), selectedBy = "community") |>
+  visPhysics(enabled = TRUE, solver = "forceAtlas2Based", forceAtlas2Based = list(gravitationalConstant = -50, centralGravity = 0.01, springLength = 150, avoidOverlap = 1)) |>
   visInteraction(dragNodes = TRUE, zoomView = TRUE, dragView = TRUE) |>
   visEdges(smooth = FALSE)
 
 network
+
 ```
 
 Observation: 5 communities are formed. The first is a major community centered around Harry Potter. The second mainly includes a group of Slytherin friends.  The third community consists of 3 of the Weasley brothers. The fourth community comprises of Muggles. The fifth community is a couple of centaurs.
