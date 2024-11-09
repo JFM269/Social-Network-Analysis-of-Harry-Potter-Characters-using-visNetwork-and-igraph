@@ -1,0 +1,253 @@
+---
+title: "Social Network Analysis of Harry Potter Characters using visNetwork & igraph"
+author: Jason Misquitta (jm5906)
+format:
+  html:
+    embed-resources: true
+execute: 
+  echo: true
+---
+
+## About the packages
+
+visNetwork is an R package focused on creating interactive network visualizations. It allows users to explore networks by clicking, hovering, and dragging nodes, with customization options for colors, node sizes, and filters. Ideal for presentations and exploratory analysis, visNetwork emphasizes dynamic, user-friendly visuals rather than deep statistical analysis.
+
+On the other hand, igraph is designed for in-depth network analysis and manipulation. It offers algorithms for calculating centrality, shortest paths, clustering, and community detection. Optimized for handling large, complex networks, igraph is widely used in research and data science for its robust analytical capabilities. Together, visNetwork and igraph allow users to both analyze and visually explore networks effectively.
+
+
+## 1. Load the Libraries
+
+```{r}
+library(visNetwork)
+library(igraph)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+```
+
+## 2. Dataset
+
+The Harry Potter series by JK Rowling is extremely popular worldwide. I will be building networks based on the character interations.
+I have referred to the data available at https://github.com/nikhil-ravi/harry-potter-interactions/tree/main/data. These dataset has been meticulously constructed by establishing connections between two characters whenever their names or nicknames are mentioned within a proximity of 14 words in the first book from the Harry Potter series. The weight of each connection represents the frequency of their interactions.
+
+To refine my analysis, I’ve made two modifications to the original dataset: first, I’ve added the Hogwarts house column for each character; second, in my network, I’m only focusing on interactions with a frequency greater than 10 (to highlight stronger connections). After making these adjustments, I saved the modified dataset to my computer, and I’ll use it as the basis for further analysis. This network study should provide valuable insights into the social dynamics within the world of Harry Potter.
+
+NOTE: Dataset is based only on characters in the **first book** of the Harry Potter series.
+
+```{r}
+nodes <- read_csv("hp_book1_nodes.csv")
+head(nodes)
+```
+
+```{r}
+edges <- read_csv("hp_book1_edges.csv")
+head(edges)
+```
+
+
+
+## 3. Creating the Network
+
+```{r}
+nodes_transformed <- nodes |>
+  select(id = characters, label = characters, house = house) |>
+  mutate(house.type = case_when(
+    house == "Gryffindor" ~ 1,
+    house == "Slytherin" ~ 2,
+    house == "Ravenclaw" ~ 3,
+    house == "Hufflepuff" ~ 4,
+    TRUE ~ 5
+  ),
+  color = case_when(
+    house == "Gryffindor" ~ "#800000", # Dark Red for Gryffindor
+    house == "Slytherin" ~ "#006600", # Green for Slytherin
+    house == "Ravenclaw" ~ "#0000FF", # Blue for Ravenclaw
+    house == "Hufflepuff" ~ "#FFCC00", # Yellow for Hufflepuff
+    TRUE ~ "#999999" # Default color for others
+  ))
+
+edges_transformed <- edges |>
+  # Join with nodes to get ids for source using the 'characters' column from nodes
+  left_join(nodes_transformed, by = c("source" = "label")) |>
+  rename(from = id) |>
+  # Join with nodes to get ids for target using the 'characters' column from nodes
+  left_join(nodes_transformed, by = c("target" = "label")) |>
+  rename(to = id) |>
+  select(from, to, weight)
+
+network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter House Network") |>
+  visLayout(randomSeed = 123) |>
+  visLegend(width = 0.1, position = "right", main = "House") |>
+  visOptions(highlightNearest = list(enabled = TRUE,degree = 1),
+    nodesIdSelection = TRUE,
+    selectedBy = "house") |>
+  visEdges(smooth = FALSE, color = list(color = "lightgray", highlight = "black"),width = 1,selectionWidth = 3) |>
+  visPhysics(enabled = FALSE) |>
+  visInteraction(hideEdgesOnDrag = TRUE, dragNodes = TRUE, dragView = TRUE, zoomView = TRUE, navigationButtons = TRUE)
+
+# Display the network
+network
+```
+
+
+## 4. Degree Centrality
+
+**Degree:** In graph theory, the degree of a node (or vertex) refers to the number of edges that are connected to it. In an undirected graph, this means how many nodes are directly connected to a particular node. In a directed graph, the degree is split into in-degree (number of incoming edges) and out-degree (number of outgoing edges).
+
+**Degree Centrality:** Degree centrality is a measure of the importance of a node in a network based on its degree. It counts the number of direct connections a node has to other nodes in the graph. A node with a high degree centrality has many direct connections, making it potentially more influential within the network.
+
+```{r}
+g <- graph_from_data_frame(d = edges_transformed, vertices = nodes_transformed, directed = TRUE)
+
+summary(g) 
+
+degree_centrality <- degree(g)
+
+nodes_transformed$degree_centrality <- degree_centrality[as.character(nodes_transformed$label)]
+
+# Print degree centrality leaders (most connected nodes)
+degree_leaders <- sort(degree_centrality, decreasing = TRUE)
+print(head(degree_leaders))
+```
+
+
+
+```{r}
+house_colors_centrality <- rev(colorRampPalette(brewer.pal(9, "Oranges"))(nrow(nodes_transformed)))
+nodes_transformed <- nodes_transformed |>
+  mutate(
+    degree_rank = nrow(nodes_transformed) + 1 - floor(rank(degree_centrality)),
+    color.background = house_colors_centrality[degree_rank],
+    title = paste("Character:", label, "<br>Degree:", degree_centrality)
+  )
+
+network_degree <- visNetwork(nodes_transformed, edges_transformed, height = '350px', width = "100%", main = "Degree Centrality") |>
+  visLayout(randomSeed = 123) |>
+  visNodes(color = list(border = "black",background = nodes_transformed$color.background),size = 20) |>
+  visOptions(highlightNearest = list(enabled = TRUE,degree = list(from = 1, to = 1), hover = FALSE),selectedBy = "degree_rank") |>
+  visPhysics(enabled = FALSE) |>
+  visInteraction(hideEdgesOnDrag = TRUE,dragNodes = TRUE,dragView = TRUE,zoomView = TRUE,navigationButtons = TRUE) |>
+  visEdges(smooth = FALSE)
+
+network_degree
+```
+
+Now, let's look at weighted degree centrality. It's interesting to compare whether the characters retain the same rank for weighted degree, as they have for degree rank.
+
+
+
+## 5. Weighted Degree Centrality
+
+**Weighted Degree:** The weighted degree of a node in a graph is similar to the regular degree but takes into account the strength or weight of the connections (edges) to other nodes. Instead of counting just the number of edges, the weighted degree sums the weights of all the edges connected to a node. 
+
+**Weighted Degree Centrality:** Weighted degree centrality is an extension of degree centrality that incorporates the weights of the edges in its calculation. Rather than just counting the number of direct connections, it calculates the total strength of a node's connections by summing the weights of all edges incident to that node.
+
+```{r}
+g <- graph_from_data_frame(d = edges_transformed, vertices = nodes_transformed, directed = TRUE)
+
+weighted_degree_centrality <- strength(g, mode = "all", weights = E(g)$weight)
+
+nodes_transformed$weighted_degree_centrality <- weighted_degree_centrality[as.character(nodes_transformed$label)]
+
+# Print top nodes by weighted degree centrality
+weighted_degree_leaders <- sort(weighted_degree_centrality, decreasing = TRUE)
+print(head(weighted_degree_leaders))
+```
+
+
+```{r}
+house_colors_centrality <- rev(colorRampPalette(brewer.pal(9, "Oranges"))(nrow(nodes_transformed)))
+nodes_transformed <- nodes_transformed |>
+  mutate(
+    weighted_degree_rank = nrow(nodes_transformed) + 1 - floor(rank(weighted_degree_centrality)),
+    color.background = house_colors_centrality[weighted_degree_rank],
+    title = paste("Character:", label, "<br>Weighted Degree:", weighted_degree_centrality) # Tooltip text
+  )
+
+network_weighted_degree <- visNetwork(nodes_transformed, edges_transformed, height = '350px', width = "100%", main = "Weighted Degree Centrality") |>
+  visLayout(randomSeed = 123) |>
+  visNodes(color = list(border = "black",background = nodes_transformed$color.background),size = 20) |>
+  visOptions(highlightNearest = list(enabled = TRUE,degree = list(from = 1, to = 1), hover = FALSE),selectedBy = "weighted_degree_rank") |>
+  visPhysics(enabled = FALSE) |>
+  visInteraction(hideEdgesOnDrag = TRUE,dragNodes = TRUE,dragView = TRUE,zoomView = TRUE,navigationButtons = TRUE) |>
+  visEdges(smooth = FALSE)
+
+network_weighted_degree
+```
+
+As expected, Harry Potter has the highest degree and weighted degree in the network.  Other characters that are observed to be influential are Ron Weasley, Hermione Granger, Rubeus Hagrid, Severus Snape, Albus Dumbledore, Draco Malfoy. 
+
+Thus, using degree centrality and weighted degree centrality, we can identify the most connected and influential characters in the Harry Potter characters network. We notice that the rank positions for degree centrality are different from those of weighted degree centrality. While degree centrality ranks characters based solely on the number of direct interactions, weighted degree centrality incorporates the frequency of these interactions, leading to a potentially different ranking. This indicates that some characters may have fewer connections but stronger relationships (like Severus Snape), affecting their relative importance in the network.
+
+
+## 5. Community Detection
+
+Community detection is a crucial concept in network analysis that aims to identify groups (or communities) of nodes within a larger network that are more densely connected to each other than to nodes outside the group. The idea is that in most real-world networks, nodes tend to form clusters or communities based on shared properties, behaviors, or interactions.
+
+One of the most widely used algorithms for community detection is the Louvain method. It is an iterative, hierarchical approach that maximizes modularity by repeatedly grouping nodes together.
+In the code, igraph is used for performing the Louvain community detection algorithm on the graph to identify clusters (communities) based on node connectivity and edge weights. visNetwork is then used for visualizing the graph.
+
+```{r}
+
+g <- graph_from_data_frame(d = edges_transformed, vertices = nodes_transformed, directed = FALSE)
+
+# Apply Louvain clustering on the graph using edge weights
+clusters <- cluster_louvain(g, weights = E(g)$weight)
+
+# Assign cluster membership to nodes and create color mapping for communities
+nodes_transformed$community <- as.factor(membership(clusters))
+
+num_communities <- length(unique(nodes_transformed$community))
+community_colors <- RColorBrewer::brewer.pal(min(num_communities, 12), "Set3")
+
+# Visualize the network
+network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter Characters Network by Community")|>
+  visLayout(randomSeed = 123)|>
+  visNodes(color = list(border = "black",background = nodes_transformed$color.community),size = 20) |>
+  visEdges(width = 1)|>
+  visOptions(highlightNearest = list(enabled = TRUE, degree = 2, hover = FALSE),selectedBy = "community") |>
+  visPhysics(enabled = FALSE) |>
+  visInteraction(dragNodes = TRUE, zoomView = TRUE, dragView = TRUE) |>
+  visEdges(smooth = FALSE)
+
+network
+```
+
+Observation: 5 communities are formed. The first is a major community centered around Harry Potter. The second mainly includes a group of Slytherin friends.  The third community consists of 3 of the Weasley brothers. The fourth community comprises of Muggles. The fifth community is a couple of centaurs.
+
+These communities give us a great idea of how characters in the Harry Potter series are interconnected based on their interactions. By grouping characters into communities, we can identify clusters of characters who frequently interact with each other, revealing hidden relationships or patterns within the story, such as close-knit groups, rivalries, or alliances. This analysis provides insights into the structure of the narrative and character dynamics.
+
+
+## 6. Graph theory metrics using igraph
+
+Exploring various graph theory metrics:
+
+**Eccentricity:** The maximum distance from a node to all other nodes in the graph.
+
+**Diameter:** The maximum eccentricity value, representing the longest shortest path between any two nodes in the graph.
+
+**Radius:** The minimum eccentricity value, representing the shortest path from any node to the farthest node in the graph.
+
+**Average Eccentricity:** The mean of the eccentricity values of all nodes in the graph.
+
+```{r}
+g <- graph_from_data_frame(edges_transformed, directed = FALSE, vertices = nodes_transformed)
+
+E(g)$weight <- 1
+eccentricity_values <- eccentricity(g, mode = "all")
+
+graph_diameter <- diameter(g)
+graph_radius <- radius(g)
+
+average_eccentricity <- mean(eccentricity_values)
+
+# Print eccentricity values for each node
+eccentricity_values
+
+cat("Diameter (maximum eccentricity):", graph_diameter, "\n")
+cat("Radius (minimum eccentricity):", graph_radius, "\n")
+cat("Average Eccentricity of the graph:", average_eccentricity)
+```
+Observation: Harry Potter has the lowest eccentricity of 2, suggesting that Harry is in the centre of the graph and is relatively closer to all other nodes. This makes sense considering that Harry the main protagonist. All other characters have an eccentricity of 3 except Ronan who has 4. This suggests that Ronan is farther from other characters in the network and may be less connected or have fewer direct links with other characters, placing him on the periphery of the network.
+
+The maximum eccentricity is 4, thus there is not much of a variation between diameter and radius thus indicating a uniformly connected graph with no extreme outliers in terms of distance from the central nodes. The nodes tend to be relatively close to each other in terms of reachability.
