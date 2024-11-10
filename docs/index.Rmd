@@ -91,9 +91,6 @@ network
 ```
 
 
-**NOTE: If the network visualization appears too clustered, please feel free to adjust the node positions (by dragging them around) for improved clarity.**
-
-
 
 ## 4. Degree Centrality
 
