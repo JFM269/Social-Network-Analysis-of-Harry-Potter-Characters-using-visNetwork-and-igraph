@@ -211,7 +211,7 @@ community_colors <- RColorBrewer::brewer.pal(min(num_communities, 12), "Set3")
 # Visualize the network
 network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main = "Harry Potter Characters Network by Community") |>
   visLayout(randomSeed = 123) |>
-  visNodes(color = list(border = "black", background = nodes_transformed$color.community), size = 20) |>
+  visNodes(color = list(border = "black", background = "lightgray"), size = 20) |>
   visEdges(width = 1) |>
   visOptions(highlightNearest = list(enabled = TRUE, degree = 2, hover = FALSE), selectedBy = "community") |>
   visPhysics(enabled = TRUE, solver = "forceAtlas2Based", forceAtlas2Based = list(gravitationalConstant = -50, centralGravity = 0.01, springLength = 150, avoidOverlap = 1)) |>
@@ -219,7 +219,6 @@ network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main
   visEdges(smooth = FALSE)
 
 network
-
 ```
 
 Observation: 5 communities are formed. The first is a major community centered around Harry Potter. The second mainly includes a group of Slytherin friends.  The third community consists of 3 of the Weasley brothers. The fourth community comprises of Muggles. The fifth community is a couple of centaurs.
