@@ -187,7 +187,7 @@ As expected, Harry Potter has the highest degree and weighted degree in the netw
 Thus, using degree centrality and weighted degree centrality, we can identify the most connected and influential characters in the Harry Potter characters network. We notice that the rank positions for degree centrality are different from those of weighted degree centrality. While degree centrality ranks characters based solely on the number of direct interactions, weighted degree centrality incorporates the frequency of these interactions, leading to a potentially different ranking. This indicates that some characters may have fewer connections but stronger relationships (like Severus Snape), affecting their relative importance in the network.
 
 
-## 5. Community Detection
+## 6. Community Detection
 
 Community detection is a crucial concept in network analysis that aims to identify groups (or communities) of nodes within a larger network that are more densely connected to each other than to nodes outside the group. The idea is that in most real-world networks, nodes tend to form clusters or communities based on shared properties, behaviors, or interactions.
 
@@ -226,7 +226,7 @@ Observation: 5 communities are formed. The first is a major community centered a
 These communities give us a great idea of how characters in the Harry Potter series are interconnected based on their interactions. By grouping characters into communities, we can identify clusters of characters who frequently interact with each other, revealing hidden relationships or patterns within the story, such as close-knit groups, rivalries, or alliances. This analysis provides insights into the structure of the narrative and character dynamics.
 
 
-## 6. Graph theory metrics using igraph
+## 7. Graph theory metrics using igraph
 
 Exploring various graph theory metrics:
 
