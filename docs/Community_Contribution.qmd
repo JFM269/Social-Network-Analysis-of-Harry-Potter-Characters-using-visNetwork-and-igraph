@@ -218,7 +218,6 @@ network <- visNetwork(nodes_transformed, edges_transformed, width = "100%", main
   visInteraction(dragNodes = TRUE, zoomView = TRUE, dragView = TRUE) |>
   visEdges(smooth = FALSE)
 
-# Display the network
 network
 ```
 
